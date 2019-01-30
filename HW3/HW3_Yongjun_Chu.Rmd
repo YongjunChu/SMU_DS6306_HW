@@ -1,0 +1,158 @@
+---
+title: "HW3_OP"
+author: "Yongjun Chu"
+date: "January 28, 2019"
+output: html_document
+---
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+#Question 1
+
+```{r echo=T}
+#Create a directory to save all the data and results for HW3
+mainDir <- "C:/Users/chu001/Documents/Sandy_files"
+subDir <- "HW3"
+dir.create(file.path(mainDir, subDir))
+setwd(file.path(mainDir, subDir))
+
+#alternative way to create the directory is to use Git:
+# cd C:/Users/chu001/Documents/Sandy_files
+# mkdir HW3
+# cd HW3
+
+#Clone the GitHub depository to my local machine
+#git clone https://github.com/caesar0301/awesome-public-datasets
+```
+
+#Question 2
+
+##2a Read the titanic.csv
+
+```{r}
+df <- read.csv("C:/Users/chu001/Documents/Sandy_files/HW3/awesome-public-datasets/titanic.csv", header=TRUE, sep=",")
+```
+##2b Plot the frenquency of females and males
+
+```{r}
+table(df$Sex)
+barplot(table(df$Sex), main = "The frequency of Female and Male passengers", xlab="Gender", ylab='Frequency')
+
+```
+
+##2c Find the means of Ages, Fares and Survial
+
+```{r}
+#str(df)
+apply(subset(df, select=c("Age", "Fare", "Survived")), 2, mean, na.rm=TRUE)
+
+```
+
+#Question 3
+
+```{r}
+library(dplyr)
+sleep <- read.csv("C:/Users/chu001/Documents/Yongjun-Chu files/SMU-data-science-application/Doing-Data_Science/Unit_3/sleep_data_01.csv", header=T, sep=",")
+glimpse(sleep)
+
+helper <- function(x) {
+  medage <- median(x$Age, na.rm = T)
+  minDura <- min(x$Duration, na.rm = T)
+  maxDura <- max(x$Duration, na.rm = T)
+  meanRSES <- mean(x$RSES, na.rm = T)
+  sdRSES <- sd(x$RSES, na.rm = T)
+
+  vec <- c(medage/5, meanRSES/5, sdRSES/5, (maxDura-minDura))
+  report <- as.data.frame(matrix(vec,ncol =4,byrow = T))
+  names(report) <- c("MedianAge", "SelfEsteem", "SE_SD", "DurationRange")
+  is.data.frame(report)
+  report
+  is.num <- sapply(report, is.numeric)
+  report[is.num] <- lapply(report[is.num], round, 2)
+  report
+}
+
+helper(sleep)
+```
+
+#Question 4
+
+```{r}
+#a
+#install.packages("fivethirtyeight")
+library(fivethirtyeight)
+```
+
+```{r}
+#b
+data(package = "fivethirtyeight")
+df1 <- college_recent_grads
+View(df1)
+str(df1)
+```
+
+```{r}
+#c
+vignette("fivethirtyeight", package = "fivethirtyeight")
+#This is a news story about this dataset: college_recent_grads. 
+#Here is the URL: https://fivethirtyeight.com/features/the-economic-guid#e-to-picking-a-college-major/
+```
+
+```{r}
+dim(df1)
+colnames(df1)
+```
+
+#Question 5
+
+```{r}
+#5a
+colnames(df1)
+ncol(df1)
+```
+
+```{r}
+#5b
+major_count <- df1 %>% filter(!is.na(major)) %>%    group_by(major_category) %>% summarise(frequency = n_distinct(major))
+major_count
+sum(major_count$frequency)
+```
+
+```{r}
+#5c
+par(las=2) # make label text perpendicular to axis
+#par(oma=c(0,0,0,0))
+par(mar=c(4,12,1,1)) # increase y-axis margin.
+
+barplot(major_count$frequency, main="Major_Categories of Recent College Grads", horiz=T, xlab = "Frequency", xlim = c(0,30), col=c("darkblue"), names.arg=major_count$major_category, cex.names=0.8)
+```
+
+```{r}
+#5d
+write.csv(df1, "major_categories.csv",row.names = F )
+```
+
+#Question 6
+
+```{r}
+#6a
+#set up a new repo: https://github.com/YongjunChu/SMU_DS6306_HW.git
+```
+
+```{r}
+#6b
+#created README.md files for the root direcctory and subdirecctory (Unit-3) in Git
+#6c 
+#uploaded files to GitHub
+```
+
+
+
+
+
+
+
+
+
+
