@@ -1,0 +1,127 @@
+---
+title: "HW5"
+author: "Yongjun Chu"
+date: "February 9, 2019"
+output: html_document
+---
+
+##Question 1
+
+```{r}
+library(tidyverse)
+setwd("C:/Users/chu001/Documents/Yongjun-Chu files/SMU-data-science-application/Doing-Data_Science/Unit_5/HW5")
+rm(list=ls())
+#download the yob2016 file from GitHub and save it in local directory
+download.file("https://raw.githubusercontent.com/BivinSadler/MSDS-6306-Doing-Data-Science/master/Unit%205/yob2016.txt", destfile = "yob2016.txt")
+df <- read.delim("C:/Users/chu001/Documents/Yongjun-Chu files/SMU-data-science-application/Doing-Data_Science/Unit_5/HW5/yob2016.txt", sep=";", header=F)
+```
+
+```{r}
+#add column names
+colnames(df) <- c("FirstName","Gender", "NameCount")
+str(df)
+#find how many duplicated first names are in df
+#library(tidyverse)
+df_1 <- df %>% distinct()
+str(df_1)
+#therefore,no duuplicated rows in the data file
+summary(df_1)
+```
+
+```{r}
+#find the name containing "yyy" at the end of a name
+grep("yyy$", df_1$FirstName, ignore.case = T, value = F)
+grep("yyy$", df_1$FirstName, ignore.case = T, value = T)
+```
+
+```{r}
+#remove a row containing "yyy" at the end of a name
+df_1 <- df_1[-212,]
+grep("yyy$", df_1$FirstName, ignore.case = T, value = F)
+y2016 <- df_1
+str(y2016)
+```
+
+
+##Question 2
+
+```{r}
+#download the yob2015 file from GitHub and save it in local directory
+download.file("https://raw.githubusercontent.com/BivinSadler/MSDS-6306-Doing-Data-Science/master/Unit%205/yob2015.txt", destfile = "yob2015.txt")
+df_2015 <- read.delim("C:/Users/chu001/Documents/Yongjun-Chu files/SMU-data-science-application/Doing-Data_Science/Unit_5/HW5/yob2015.txt", sep=",", header=F)
+colnames(df_2015) <- c("FirstName","Gender", "NameCount")
+str(df_2015)
+```
+
+```{r}
+#find how many duplicated first names are in df_2015
+#library(tidyverse)
+df_2015_1 <- df_2015 %>% distinct()
+str(df_2015_1)
+#no duplicated rows were found
+y2015 <-df_2015
+```
+
+```{r}
+tail(y2015, n=10)
+#intesting thing about last ten rows: all Male, and with 5 counts each
+
+```
+
+```{r}
+#merge two data frames by the FirstName; only overlapped rows were kept
+final <- merge(y2015, y2016, by="FirstName", all=F)
+str(final)
+
+```
+
+
+##Question 3
+
+```{r}
+head(final)
+#create a new column based on the sum of two other columns
+final$Total <- final$NameCount.x + final$NameCount.y
+head(final)
+#find the sum of all the name-counts in 2015 and 2016
+sum(final$Total)
+str(final)
+
+#In two years combined, there were 11404228 people were given popular names.
+```
+
+```{r}
+#sort the Total column from largest to smallest
+final_1 <- final[with(final, order(Total, decreasing = T)),]
+#the top 10 most popular names in 2015 & 2016 are presented in the following
+head(final_1, n=10)
+
+```
+
+
+```{r}
+#sort Gender.x, then Gender.y from F to M
+final_2 <- final_1[with(final_1, order(Gender.x, Gender.y)),]
+#the top 10 most popular girl's names are presented below:
+head(final_2, n=10)
+```
+
+```{r}
+#retain the first 10 rows of columns "FirstName" and "Total" in final_2 data frame
+girlnames <- final_2[1:10,c(1,6)]
+girlnames
+```
+
+```{r}
+#ourput the top 10 girl's names in 2015/2016 to a .csv file
+write.csv(girlnames, "top_10_girl_names.csv", row.names = F)
+```
+
+```{r}
+sessionInfo()
+
+```
+
+###The GitHub repository for my Unit_5 homework material is:
+https://github.com/YongjunChu/SMU_DS6306_HW/tree/master/HW5
+

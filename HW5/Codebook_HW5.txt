@@ -1,0 +1,25 @@
+Codebook for HW5
+
+Objects created in this session:
+df: a data frame to save the content of downloaded file: yob2016.txt
+df_1: a data frame to save only unique rows of df
+df_2015: a data frame to save the content of downloaded file: yob2015.txt
+df_2015_1: df_1: a data frame to save only unique rows of df_2015
+final: a data frame to save only overlapped content from dataframes "y2015" and "y2016", based on the "FirstName"
+final_1: a data frame obtained by sorting the column of "Total" in data frame "final"
+final_2: a data frame obtained by sorting the columns of Gender.x, then Gender.y in data frame "final_1"
+girlnames: a data frame only containing first 10 rows and columns 1 to 6 of data frame "final_2"
+y2015: a copy of data frame "df_2015"
+y2016: a copy of data frame "df_1"
+
+Files created during this session:
+top_10_girl_names.csv
+
+
+
+
+
+
+
+
+
