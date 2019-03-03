@@ -1,0 +1,236 @@
+---
+title: "case_study_1"
+author: "Yongjun Chu"
+date: "February 23, 2019"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(tidyverse)
+library(ggplot2)
+library(dplyr)
+library(tidyr)
+```
+##Introduction
+
+###The production and sales volumn of craft beer in US have seen steady increases during the last few years. From the point of view of exploring potencial new investment areas and new markets, it is important to gain more insights into the craft beer industry. Based on the two raw datasets related to carft beers and their brewers, we were able to uncover some interesting facts about US craft beer industry. 
+
+
+##Question 1 : how many breweries are present in each state?
+###Answer: Since there are so many states, this question is best answered by a bar plot (see below). It was found that Colorado has the most breweries and DC tied with other 3 states has the least.
+
+```{r}
+#upload the two data files: "Beers.csv"" and "Breweries.csv"
+beer <- read.csv("C:/Users/chu001/Documents/Yongjun-Chu files/SMU-data-science-application/Doing-Data_Science/Case_study_1/Beers.csv", sep = ',', header = T)
+str(beer)
+head(beer)
+#convert all empty or space entries to NA
+beer[beer=="" | beer == " "] <- NA
+#apply(is.na(beer), 2, which)
+sapply(beer, function(x) sum(is.na(x)))
+
+brewery <- read.csv("C:/Users/chu001/Documents/Yongjun-Chu files/SMU-data-science-application/Doing-Data_Science/Case_study_1/Breweries.csv", sep = ',', header = T)
+str(brewery)
+head(brewery)
+#convert all empty or space entries to NA
+brewery[brewery == "" | brewery == " "] <- NA
+sapply(brewery, function(x) sum(is.na(x)))
+
+#remove the extra empty space before the state name in column State
+brewery$State <- as.factor(gsub("^\\s+", "", brewery$State))
+str(brewery)
+#or using str_trim to remove the empty space at the beginning/end of a string
+#library(stringr)
+#brewery$State <- as.factor(str_trim(brewery$State))
+
+library(plyr)
+require("gridExtra")
+number = count(brewery, 'State')
+number
+unique(number$freq)
+
+#another way to solve this question
+#brewery %>% group_by(State) %>% dplyr::summarise(brew_per_state =length(Brew_ID))
+
+#ggplot the freq of brewery for each state in decreasing order
+p = ggplot(number, aes(x=reorder(State, freq), y=freq, fill=State)) + geom_bar(stat="identity") + labs(title="The number of brewers by state", 
+         x="State", y = "Count") + theme_minimal() + coord_flip() + theme(legend.position="none") + theme(plot.title=element_text(hjust=0.5, size = 18, face = "bold"), axis.title = element_text(size = 16, face = "bold"))
+p
+
+```
+
+
+##Question 2: Merge beer data with the breweries data. Print the first 6 observations and the last six observations to check the merged file.
+
+###Answer: the two files was merged based on the brewer ID. There are 2410 rows. The first and last 6 rows of the merged file are shown below. 
+
+```{r}
+#merge two data frames
+colnames(beer)[1] <- "Name_beer"
+colnames(beer)[5] <- "Brew_ID"
+colnames(brewery)[2] <- "Name_brew"
+total = merge(beer, brewery, by.x="Brew_ID", by.y="Brew_ID", all = T)
+nrow(total)
+head(total)
+tail(total)
+str(total)
+
+#find the situation in St Lois or Budweiser
+#head(total %>% select(Name_beer, Beer_ID, ABV, IBU, Style, Name_brew, City, State))
+total %>% filter(grepl("Saint Louis", total$City))
+total %>% filter(grepl("Budweiser", total$Name_beer))
+
+```
+
+
+##Question 3:report the total of rows having 'NA' in each column
+
+###Answer: the output from sapply shows that there are 62 NAs in ABV column, 1005 in IBU column and 5 in Style.
+
+```{r}
+#Report the exact rows having NA in each column
+#apply(is.na(total), 2, which)
+
+#head(total, n=20)
+
+#report the total of rows having 'NA' in each column
+number_NA <- sapply(total, function(x) sum(is.na(x)))
+class(number_NA)
+number_NA
+
+```
+
+##Question 4: Compute the median alcohol content and international bitterness unit for each state. Plot a bar chart to compare
+
+###Answer: two bar graphs were generated for ABV and IBU, respectively.
+
+```{r}
+str(total)
+#get the histogram of ABV and IBU for TX: 
+qplot(total$ABV[total$State == "TX"],
+      geom="histogram",
+      binwidth = 0.002,  
+      main = "Histogram for ABV in TX", 
+      xlab = "ABV",  
+      fill=I("blue"))
+
+qplot(total$IBU[total$State == "TX"],
+      geom="histogram",
+      binwidth = 2,  
+      main = "Histogram for IBU in TX", 
+      xlab = "IBU",  
+      fill=I("red"))
+
+#get the histogram of ABV and IBU for all states: 
+qplot(total$ABV,
+      geom="histogram",
+      binwidth = 0.002,  
+      main = "Histogram for ABV", 
+      xlab = "ABV",  
+      ylab="Frequency",
+      fill=I("blue")) + theme_grey(base_size = 16)
+
+qplot(total$IBU,
+      geom="histogram",
+      binwidth = 2,  
+      main = "Histogram for IBU", 
+      xlab = "IBU", 
+      ylab="Frequency",
+      fill=I("red"))+ theme_grey(base_size = 16)
+
+#ggplot(data=total, aes(total$ABV)) + geom_histogram()
+
+#get median ABV and IBU for each state
+median <-  total %>% group_by(State) %>% dplyr::summarise(median_ABV=median(ABV, na.rm = T),median_IBU = median(IBU,na.rm=T) )
+median
+
+#plot a bar graph to compare ABV
+ggplot(median, aes(x=reorder(State, -median_ABV),y=median_ABV, fill=State)) + geom_bar(stat = 'identity') + labs(title="The median ABV by state", 
+         x="State", y = "ABV") +  theme_minimal() + coord_flip() + theme(legend.position="none") + theme(plot.title=element_text(hjust=0.5, size=18,face = "bold"), axis.title = element_text(size = 16, face = "bold")) 
+
+#plot a bar graph to compare IBU
+ggplot(median, aes(x=reorder(State, -median_IBU),y=median_IBU, fill=State)) + geom_bar(stat = 'identity') + labs(title="The median IBU by state", 
+         x="State", y = "IBU") + theme_minimal() + coord_flip() + theme(legend.position="none") + theme(plot.title=element_text(hjust=0.5, size=18,face = "bold"), axis.title = element_text(size = 16, face = "bold")) 
+
+```
+
+##question 5: Which state has the maximum alcoholic (ABV) beer? Which state has the most bitter (IBU) beer?
+
+###Answer: Colorado has the maximum ABV beer and Oregon has the most bitter beer.
+
+```{r}
+#Which state has the maximum alcoholic (ABV) beer? Which state has the most bitter #(IBU) beer?
+#
+max <- total %>% group_by(State) %>% dplyr::summarise(max_ABV=max(ABV, na.rm = T),max_IBU = max(IBU,na.rm=T) )
+max
+
+top_5_ABV <- arrange(max, -max_ABV)[1:5,]
+print(top_5_ABV)
+top_5_IBU <- arrange(max, -max_IBU)[1:5,]
+print(top_5_IBU)
+
+#sub_max_ABV <- filter(max, State == " CO"|State ==" KY"|State ==" IN"|State ==" NY"|State ==" CA")
+#sub_max_IBU <- filter(max, State == " OR"|State ==" VA"|State ==" MA"|State ==" OH"|State ==" MN")
+
+#plot a bar graph to compare max ABV for top 5 states
+ggplot(top_5_ABV, aes(x=reorder(State, -max_ABV),y=max_ABV, fill=State)) + geom_bar(stat = 'identity') + labs(title="The top 5 states having the largest max_ABV", 
+          x="State", y = "max_ABV") + theme_minimal() + coord_flip()+  theme_bw(base_size=16) + theme(legend.position="none") + theme(plot.title=element_text(hjust=0.5))  
+
+#plot a bar graph to compare max IBU for top 5 states
+ggplot(top_5_IBU, aes(x=reorder(State, -max_IBU),y=max_IBU, fill=State)) + geom_bar(stat = 'identity') + labs(title="The top 5 states having the largest max_IBU", 
+          x="State", y = "max_IBU") + theme_minimal() + coord_flip()+  theme_bw(base_size=16) + theme(legend.position="none") + theme(plot.title=element_text(hjust=0.5))  
+
+
+max_ABV_state <- filter(max, max_ABV == max(max_ABV))
+max_ABV_state
+
+max_IBU_state <- filter(max, max_IBU == max(max_IBU))
+max_IBU_state
+
+```
+
+
+##Question 6: Summary statistics for the ABV variable.
+
+###Answer: min: 0.001; median: 0.056, Mean: 0.05977, and mx: 0.128
+
+```{r}
+summary(total$ABV, na.rm=T)
+summary(total$IBU, na.rm=T)
+```
+
+##question 7: Is there an apparent relationship between the bitterness of the beer and its alcoholic content? Draw a scatter plot.
+
+###Answer: Yes. the Pearson correlation coefficinet is r = 0.67 (p-value <0.0001). This fitting curve suggests a roughly linear relationship between these two.
+
+```{r}
+#a scatter plot should solve this problem
+ggplot(total, aes(x=ABV, y=IBU)) + geom_point(color="blue", size=1.5, alpha=0.4, pch=16)+ theme_bw(base_size=16) + geom_smooth(method = "lm", se = T, color="red") + labs(title="The scatter plot between ABV and IBU") + theme(legend.position="none") + theme(plot.title=element_text(hjust=0.5))
+total$IBU <- as.numeric(total$IBU)
+
+#the cor function is not working becaue of the NA in the data
+#corr_coef <- round(cor(total$ABV, total$IBU), digits = 2)
+#corr_coef
+
+#We can draw the plot with ggscatter.
+library("ggpubr")
+ggscatter(total, x = "ABV", y = "IBU", color = "black",
+          add = "reg.line", conf.int = TRUE, 
+          cor.coef = TRUE, cor.method = "pearson", add.params = list(color = "blue", fill = "lightgray"),
+          xlab = "ABV", ylab = "IBU", title="The scatter plot between ABV and IBU")
+
+```
+
+##Conclusions
+
+###We have made several interesting findings about the craft beer industry in US. In terms of which state has the most craft beer brewers, Colorado takes the number 1 spot, followed by California, Michigan, Orogen and Texas, all in midwest/west region. When comparing the alcohol content (ABV) in all the beers produced in each state, washington DC has the highest median ABV value at 0.0625. For beer bitness (IBU) comparison, Maine took the top spot. When searching for the state producing the largest ABV beer, we found that Colorado is on the top. We also found that Oregon produces the most bitness beer in the nation, with IBU value of 138. Finally, it was found that there is a significant correlation between alcohol content and beer bitness among all the craft beer in the US (r =0.67, p-value < 0.0001).
+
+##The link to the presentation video is: https://www.screencast.com/t/uKGLXQkN
+
+
+
+

@@ -1,0 +1,1 @@
+This folder cointains the files for the case-study-1. It has the Rmarkdown file, .html file and R code which was developed jointly with another classmate. The two .csv raw data files were also stored here. In addition, the codebook file was provided. The presentation video can be found at this url: https://www.screencast.com/t/uKGLXQkN   
