@@ -1,0 +1,325 @@
+---
+title: "HW9"
+author: "Yongjun Chu"
+date: "March 11, 2019"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+#library(tidyverse)
+library(ggplot2)
+library(dplyr)
+library(tidyr)
+```
+
+
+## Question A. Clean and prepare the data:
+
+```{r}
+#upload the two data files: "Beers.csv"" and "Breweries.csv"
+beer <- read.csv("C:/Users/chu001/Documents/Yongjun-Chu files/SMU-data-science-application/Doing-Data_Science/Case_study_1/Beers.csv", sep = ',', header = T)
+str(beer)
+head(beer)
+#convert all empty or space entries to NA
+beer[beer=="" | beer == " "] <- NA
+#apply(is.na(beer), 2, which)
+sapply(beer, function(x) sum(is.na(x)))
+
+brewery <- read.csv("C:/Users/chu001/Documents/Yongjun-Chu files/SMU-data-science-application/Doing-Data_Science/Case_study_1/Breweries.csv", sep = ',', header = T)
+str(brewery)
+head(brewery)
+#convert all empty or space entries to NA
+brewery[brewery == "" | brewery == " "] <- NA
+sapply(brewery, function(x) sum(is.na(x)))
+
+#remove the extra empty space before the state name in column State
+brewery$State <- as.factor(gsub("^\\s+", "", brewery$State))
+str(brewery)
+
+colnames(beer)[1] <- "Name_beer"
+colnames(beer)[5] <- "Brew_ID"
+colnames(brewery)[2] <- "Name_brew"
+total = merge(beer, brewery, by.x="Brew_ID", by.y="Brew_ID", all = T)
+nrow(total)
+head(total)
+str(total)
+
+#or use this commnad
+total1 <- left_join(beer, brewery, by="Brew_ID")
+nrow(total1)
+
+#Create One Dataset that has only Colorado and Texas beers and no IBU NAs
+beerCOTX <- total %>% dplyr::filter((State=="CO"|State=="TX") & !is.na(IBU))
+nrow(beerCOTX)
+sapply(beerCOTX, function(x) sum(is.na(x)))
+
+#or use this following commands
+beerCOTX1 <- total %>% filter(grepl("CO|TX", State))
+nrow(beerCOTX1)
+sapply(beerCOTX1, function(x) sum(is.na(x)))
+beerCOTX2 <- beerCOTX1[complete.cases(beerCOTX1[ , 5]),]
+sapply(beerCOTX2, function(x) sum(is.na(x)))
+nrow(beerCOTX2)
+
+#Order beerCOTX by IBU (ascending)
+head(beerCOTX)
+beerCOTX <- beerCOTX %>% dplyr::group_by(State) %>% dplyr::arrange(IBU)
+
+#or using "order" command
+#beerCOTX <- beerCOTX[order(beerCOTX$IBU),]
+```
+
+##Question B. Create an initial plots of the data
+
+```{r}
+#plot ABV vs. IBU for CO and TX
+p <- ggplot(beerCOTX, aes(y=ABV, x=IBU)) + geom_point() + facet_wrap(~State, nrow=2) + theme_minimal() 
+p = p +  ggtitle(label="ABV vs IBU") + theme(plot.title=element_text(hjust=0.5)) +  theme(legend.position="right")
+p
+```
+
+##Question C: Model the data
+
+```{r}
+beerTX <- beerCOTX %>% filter(State=="TX") %>% select(ABV, IBU, State)
+beerCO <- beerCOTX %>% filter(State=="CO") %>% select(ABV, IBU, State)
+plot(x=beerTX$IBU,y=beerTX$ABV, pch = 20, col = "red", xlab = "IBU", ylab="ABV", main = "IBU vs. ABV for TEXAS") #scatter plot of y versus x_1
+fit = lm(ABV~IBU,data = beerTX) # fit the model to get Beta_hat_0 and Beta_hat_1
+summary(fit) # view the parameter estimate table
+confint(fit)
+preds = predict(fit)
+head(preds)
+lines(x=beerTX$IBU,y=preds,type = "l",lwd = 4, col="blue")
+
+plot(beerCO$IBU,beerCO$ABV, pch = 20, col = "red", xlab = "IBU", ylab="ABV", main = "IBU vs. ABV for COLORADO") #scatter plot of y versus x_1
+fit = lm(ABV~IBU,data = beerCO) # fit the model to get Beta_hat_0 and Beta_hat_1
+summary(fit) # view the parameter estimate table
+confint(fit)
+preds = predict(fit)
+head(preds)
+lines(beerCO$IBU,preds,type = "l",lwd = 4, col="black")
+```
+
+```{r}
+# Address the assumptions of the regression model
+
+#1. Look at distribution of ys for a cross section of xs (conditiona on the xs).
+beerTX %>% filter(IBU >19 & IBU < 21) %>% ggplot(aes(x = ABV)) + geom_histogram() #looking OK as a normal distribution
+beerCO %>% filter(IBU >19 & IBU < 21) %>% ggplot(aes(x = ABV)) + geom_histogram() #not looking good as a normal distribution
+
+#2. Check if these normal distributions have equal standard deviations.  
+#Look at the residuals for a cross section of the xs (conditional on the xs).
+beerCO$resids = fit$residuals
+beerCO %>% filter(IBU >18 & IBU < 22) %>% ggplot(aes(x = resids)) + geom_histogram() #looking not too bad
+#standard deviation of residuals.  
+sd((beerCO %>% filter(IBU >18 & IBU < 22))$resids)
+sd((beerCO %>% filter(IBU >28 & IBU < 32))$resids)
+#due to the limited data points, the SD of residuals at different points are not the same.
+
+#3. The means of these normal distributions have a linear relationship with IBU.  
+mean_value <- beerCO %>% group_by(IBU) %>% dplyr::summarise(mean_ABV=mean(ABV))
+plot(x=mean_value$IBU, y=mean_value$mean_ABV, pch = 20, col = "red", xlab = "IBU", ylab="mean_ABV", main = "IBU vs. mean_ABV for CO") 
+
+mean_value <- beerTX %>% group_by(IBU) %>% dplyr::summarise(mean_ABV=mean(ABV))
+plot(x=mean_value$IBU, y=mean_value$mean_ABV, pch = 20, col = "red", xlab = "IBU", ylab="mean_ABV", main = "IBU vs. mean_ABV for TX") 
+
+#both plots look pretty good in terms of the linearity between mean ABV on each IBU.
+
+#4. Independence (you may assume this one to be true without defense.)  
+```
+
+```{r}
+#to answer this question more efficiently, we have to use ggfortigfy package to get diagonosis plot.
+
+library(ggfortify)
+sapply(beerTX, function(x) sum(is.na(x)))
+nrow(beerTX)
+fit = lm(ABV~IBU,data = beerTX) 
+#head(fit)
+autoplot(fit, smooth.colour = NA)
+```
+
+##For TX dataset: by examing the diagnostic plots, it appears that normality assumption is not perfectly met based on the normal Q-Q plot. The equal variance is roughly met based on the square-root of standardized residual vs. fitted values plot. The residuals vs leverage plot showed some influential data points (number-labled). We assume that the independence assumption is met.
+
+```{r}
+sapply(beerCO, function(x) sum(is.na(x)))
+fit = lm(ABV~IBU,data = beerCO) 
+nrow(beerCO)
+autoplot(fit, smooth.colour = NA)
+```
+
+##For CO dataset: by examing the diagnostic plots, it appears that normality is not ideally met (normal Q-Q plot) and equal variance is not met. There is a funnel-like shape in the plot of square-root of |standarized residual| vs. fitted values. The residuals vs leverage plot showed a few influential data points, labeled in numbers, but overall, it was acceptable. We assume that the independence assumption is met.
+
+#Question D. Gain inference from the model
+
+```{r}
+#get parameter table and 95% CI
+fit = lm(ABV~IBU,data = beerTX) # fit the model to get Beta_hat_0 and Beta_hat_1
+summary(fit) # view the parameter estimate table
+confint(fit)
+```
+## For TX dataset, the obtained regression equation is: mean_ABV(ABV|IBU) = 0.04347 + 0.0004172*IBU. Interpretation of the slope: for one unit incrase in IBU, there is 0.0004172 unit increase on ABV. The 95% confidence interval for the sclope (TX) is: [0.000344, 0.00049], The 95% confidence interval defines a range of values that you can be 95% certain contains the population mean of the slope. 
+
+## The interpretation of 95% CI: If thousands of samples of n items are drawn from a population using simple random sampling and a confidence interval is calculated for each sample, the proportion of those intervals that will include the true population slope is 95%.
+
+```{r}
+fit = lm(ABV~IBU,data = beerCO) # fit the model to get Beta_hat_0 and Beta_hat_1
+summary(fit) # view the parameter estimate table
+confint(fit)
+```
+
+## For CO dataset, the obtained regression equation is: mean_ABV(ABV|IBU) = 0.0474 + 0.0003676*IBU. Interpretation of the slope: for one unit incrase in IBU, there is 0.0003676 unit increase on ABV. The 95% confidence interval for the sclope (CO) is: [0.0003, 0.000435], The 95% confidence interval defines a range of values that you can be 95% certain contains the population mean of the slope. 
+
+##There is no evience to suggest that the relationship between ABV and IBU is significantly different between Texas and Colorado beers. This is becuase the 95% confidence interval of the slope in Texas ABV vs. IBU linear fitting is greatly overalpping with 95% CI of the slope in Colorado ABV vs. IBU fitting. The 95% CI for the former is [0.000344, 0.000490], while for the latter is [0.0003, 0.000435].
+
+
+#Question E. Compare two competing models: External Cross Validation
+
+```{r}
+#11.Using the beerCOTX dataframe, add a column to the data that is the square of the IBU column, IBU2
+beerCOTX$IBU2 <- (beerCOTX$IBU)^2
+head(beerCOTX)
+
+#12. For each state, create a training and test set from the data (60%/40% split respectively).  
+#Print a summary of each new data frame. there should be four: TrainingCO, TestCO, TrainingTX, TestTX
+
+#Divide into training and test set with 60% for training and 40% for test
+beerTX <- beerCOTX %>% filter(State=="TX")
+beerCO <- beerCOTX %>% filter(State=="CO")
+samplesize_TX=nrow(beerTX)
+samplesize_TX
+samplesize_CO=nrow(beerCO)
+samplesize_CO
+
+train_perc = 0.60
+train_indices_TX = sample(seq(1,samplesize_TX,length = samplesize_TX),round(train_perc*samplesize_TX))
+train_indices_CO = sample(seq(1,samplesize_CO,length = samplesize_CO),round(train_perc*samplesize_CO))
+
+TrainingTX = beerTX[train_indices_TX,]
+summary(TrainingTX)
+TestTX = beerTX[-train_indices_TX,]
+summary(TestTX)
+
+TrainingCO = beerCO[train_indices_CO,]
+summary(TrainingCO)
+TestCO = beerCO[-train_indices_CO,]
+summary(TestCO)
+```
+
+```{r}
+#13.  Brewmeisters are curious if the relationship between ABV and IBU is purely linear or quadratic.  
+
+#result for TX
+ASEholderTrain1_TX = c()
+ASEholderTest1_TX = c()
+ASEholderTrain2_TX = c()
+ASEholderTest2_TX = c()
+
+fitTrain1 = lm(ABV~IBU, data = TrainingTX)
+autoplot(fitTrain1, smooth.colour = NA)
+summary(fitTrain1)
+# These are the predictions of the model on the data that were used to fit the model.
+predsTrain1 = predict(fitTrain1)
+# These are the predictions of the model on the data that were NOT used to fit the model.
+# This is a better measure of how the model will perform in real life
+predsTest1 = predict(fitTrain1, newdata = TestTX)
+TestTX$preds1 <- predsTest1
+head(TestTX)
+# Calculation of the ASE for the Test set for one variable
+ASEholderTest1_TX = sum((TestTX$preds1 - TestTX$ABV)^2)/(length(TestTX$ABV))
+ASEholderTest1_TX
+
+fitTrain2 = lm(ABV~IBU+IBU2, data = TrainingTX)
+autoplot(fitTrain2, smooth.colour = NA)
+summary(fitTrain2)
+# These are the predictions of the model on the data that were used to fit the model.
+predsTrain2 = predict(fitTrain2)
+# These are the predictions of the model on the data that were NOT used to fit the model.
+# This is a better measure of how the model will perform in real life
+predsTest2 = predict(fitTrain2, newdata = TestTX)
+TestTX$preds2 <- predsTest2
+head(TestTX)
+# Calculation of the ASE for the Test set for two variables IBU and IBU2
+ASEholderTest2_TX = sum((TestTX$preds2 - TestTX$ABV)^2)/(length(TestTX$ABV))
+ASEholderTest2_TX
+
+
+#result for CO
+ASEholderTrain1_CO = c()
+ASEholderTest1_CO = c()
+ASEholderTrain2_CO = c()
+ASEholderTest2_CO = c()
+
+fitTrain1 = lm(ABV~IBU, data = TrainingCO)
+autoplot(fitTrain1, smooth.colour = NA)
+summary(fitTrain1)
+# These are the predictions of the model on the data that were used to fit the model.
+predsTrain1 = predict(fitTrain1)
+# These are the predictions of the model on the data that were NOT used to fit the model.
+# This is a better measure of how the model will perform in real life
+predsTest1 = predict(fitTrain1, newdata = TestCO)
+TestCO$preds1 <- predsTest1
+head(TestCO)
+# Calculation of the ASE for the Test set for one variable
+ASEholderTest1_CO = sum((TestCO$preds1 - TestCO$ABV)^2)/(length(TestCO$ABV))
+ASEholderTest1_CO
+
+fitTrain2 = lm(ABV~IBU+IBU2, data = TrainingCO)
+autoplot(fitTrain2, smooth.colour = NA)
+summary(fitTrain2)
+# These are the predictions of the model on the data that were used to fit the model.
+predsTrain2 = predict(fitTrain2)
+# These are the predictions of the model on the data that were NOT used to fit the model.
+# This is a better measure of how the model will perform in real life
+predsTest2 = predict(fitTrain2, newdata = TestCO)
+TestCO$preds2 <- predsTest2
+head(TestCO)
+# Calculation of the ASE for the Test set for two variables
+ASEholderTest2_CO = sum((TestCO$preds2 - TestCO$ABV)^2)/(length(TestCO$ABV))
+ASEholderTest2_CO
+```
+
+##The results from both TX and Co suggest that adding the quadratic term of explanatory vairable didn't improve the ASE on test dataset from just using the one explanatory varuable. For TX dataset, the ASE for IBU only and IBU + IBU2 are 9.434131e-05 and 9.498438e-05, respectively. Obviously, adding the IBU2 term didn't reduce the ASE value. For CO dataset, the ASE for IBU only and IBU + IBU2 are 0.0001282815 and 0.0001318968, respectively. Obviously, adding the IBU2 term didn't reduce the ASE value for CO dataset either. Therefore, the linear regression with just the IBU term is more appropriate for both TX and Co datasets, since adding one more predictor (quasratic term) didn't improve the fitting at all. 
+
+#BONUS: Is there another method that you know of that will provide inference as to the significance of the squared IBU term? 
+
+```{r}
+#Please describe your thoughts and provide relevant statistics.  Does this inference agree with the result of your cross validation?  
+
+#just check if the p-value of the regression coefficients of IBU and IBU2 are significant using the whole dataset (for both TX and CO)
+fit1 = lm(ABV~IBU, data = beerTX)
+#autoplot(fitTrain1, smooth.colour = NA)
+summary(fit1)
+
+fit12 = lm(ABV~IBU+IBU2, data = beerTX)
+#autoplot(fitTrain1, smooth.colour = NA)
+summary(fit12)
+
+fit2 = lm(ABV~IBU2, data = beerTX)
+#autoplot(fitTrain1, smooth.colour = NA)
+summary(fit2)
+```
+
+##Based on the output of the regression coefficients from TX dataset, we can see that either IBU or IBU2 can be a good predictor for ABV, but not both together. When fitting with both IBU and IBU2, it rendered both slopes as not significant (p-value > 0.05). This suggests a multicollinearity between IBU and IBU2, meaning IBU and IBU2 are essentially functioning redundantly in the regression. Therefore, we should not include IBU2 in the linear regression in this case.   
+
+```{r}
+fit1 = lm(ABV~IBU, data = beerCO)
+#autoplot(fitTrain1, smooth.colour = NA)
+summary(fit1)
+
+fit12 = lm(ABV~IBU+IBU2, data = beerCO)
+#autoplot(fitTrain1, smooth.colour = NA)
+summary(fit12)
+
+fit12 = lm(ABV~IBU2, data = beerCO)
+#autoplot(fitTrain1, smooth.colour = NA)
+summary(fit2)
+```
+
+##Based on the output of the regression coefficients from CO dataset, we can see that either IBU or IBU2 can be a good predictor for ABV, but not both together. When fitting with both IBU and IBU2, it rendered both slopes as not significant (p-value > 0.05). This suggests a multicollinearity between IBU and IBU2, meaning IBU and IBU2 are essentially functioning redundantly in the regression. Therefore, we should not include IBU2 in the linear regression in this case. 
+
+
